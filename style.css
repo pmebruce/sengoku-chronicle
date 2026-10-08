@@ -313,3 +313,7 @@ button.person.active::before{background:var(--gold)}
 #inset.is-mobile .zone-ring{stroke-width:3}
 }
 @media(max-width:600px){#inset.is-mobile .inset-prov{opacity:.92;stroke-width:5}#inset.is-mobile .inset-prov.is-covered{opacity:.15}}
+/* 換幕卡片：一般檢視時由 map-motion.js 的 placeBurst() 放在地圖上沒有文字的海面，底色不透明，避免和下面的文字疊在一起 */
+.map-panel:not(.theater) .scene-burst.placed{background:#0f1a27;box-shadow:0 8px 24px #030910a0;z-index:2}
+.map-panel:not(.theater) .scene-burst.no-room{visibility:hidden}
+@media(max-width:760px){.map-panel:not(.theater) .scene-burst.placed{padding:7px 10px}.map-panel:not(.theater) .scene-burst.placed span:first-child{font-size:12px}.map-panel:not(.theater) .scene-burst.placed span:last-child{font-size:14px;line-height:1.4}}

@@ -264,7 +264,7 @@ function makePlacer(ctx) {   // ctx: container, hard[], regEls(), samples[], zon
     t.setAttribute('x', (best.b.x - m0.x).toFixed(1));
     t.setAttribute('y', (best.b.y - m0.y).toFixed(1));
     const bb = t.getBBox();
-    ctx.hard.push(padBox(bb, 2)); if (ctx.onPlaced) ctx.onPlaced(bb);
+    ctx.hard.push(padBox(bb, ctx.gap || 2)); if (ctx.onPlaced) ctx.onPlaced(bb);
     let line = null;
     if (best.lead) {
       line = svgNode('line', { x1: best.lead[0].toFixed(1), y1: best.lead[1].toFixed(1), x2: best.lead[2].toFixed(1), y2: best.lead[3].toFixed(1), class: 'leader ' + cls }, ctx.container);
@@ -320,13 +320,13 @@ function placeAllLabels(obstacles, battle, cityList) {
 function placeInsetLabels(battle, cityList) {
   const routes = marches.filter(m => m.type === 'route' && m.inset);
   const box = { x: INSET.x + 2, y: INSET.y + 2, width: INSET.w - 4, height: INSET.h - 4 };
-  const hard = [padBox(inset.titleBox, 2)];
+  const hard = [padBox(inset.titleBox, inset.mob ? 6 : 2)];
   if (inset.battleBox) hard.push(inset.battleBox);
   const place = makePlacer({
     container: inset.labels, regEls: () => [...inset.root.querySelectorAll('.inset-prov:not(.is-covered):not([data-pinned])')],
     samples: routeSamples(routes, 'inset').filter(([x, y]) => inRect(box, x, y)), leaders: [], hard,
     zones: marches.filter(m => m.insetEl).map(m => [m.ix, m.iy, Math.min((m.item.r || 14) * inset.k * 0.55, 26) + 2]),
-    bounds: { x0: INSET.x + 4, y0: INSET.y + 4, x1: INSET.x + INSET.w - 4, y1: INSET.y + INSET.h - 4 }, rings: inset.mob ? [34, 50, 68] : [20, 30, 40]
+    bounds: { x0: INSET.x + 4, y0: INSET.y + 4, x1: INSET.x + INSET.w - 4, y1: INSET.y + INSET.h - 4 }, rings: inset.mob ? [34, 50, 68] : [20, 30, 40], gap: inset.mob ? 6 : 2
   });
   const iSamples = routeSamples(routes, 'inset');
   if (inset.mob) relocateInsetProvs(iSamples, hard);
@@ -335,10 +335,8 @@ function placeInsetLabels(battle, cityList) {
     const b = padBox(e.getBBox(), 2);
     if (iSamples.some(([x, y]) => inRect(b, x, y)) || (inset.battleBox && boxHit(b, inset.battleBox))) e.classList.add('is-covered');
   });
-  // 手機：近畿五國的名字當作硬障礙，後面擺的城市／行軍標籤要讓開，而不是把國名調暗
-  if (inset.mob) inset.root.querySelectorAll('.inset-prov:not(.is-covered)').forEach(e => {
-    if (INSET_TARGETS.includes(e.dataset.region)) { e.dataset.pinned = '1'; hard.push(padBox(e.getBBox(), 2)); }
-  });
+  // 手機：放大框裡看得到的國名都當作硬障礙（留 6 個單位≈3px 的空隙），後面擺的城市／行軍標籤要讓開，而不是把國名調暗或貼在旁邊
+  if (inset.mob) inset.root.querySelectorAll('.inset-prov:not(.is-covered)').forEach(e => { e.dataset.pinned = '1'; hard.push(padBox(e.getBBox(), 6)); });
   if (inset.battle && battle) { const t = inset.battle.transform.baseVal[0].matrix; place(battle[2], [{ x: t.e, y: t.f, pen: 0 }], 'battle-label inset-label'); }
   for (const c of cityList) {
     if (!inRect(inset.src, c.x, c.y)) continue;
@@ -390,6 +388,53 @@ function relocateInsetProvs(samples, hard) {
     }
     if (!ok) { e.setAttribute('x', x0.toFixed(1)); e.setAttribute('y', y0.toFixed(1)); placed.push(padBox(e.getBBox(), 3)); }
   }
+}
+/* ---------- 換幕卡片（#sceneBurst）的位置：一般檢視時放在地圖上「沒有文字」的海面 ----------
+   原本固定在地圖容器右下角：桌面版會蓋住太平洋角落的局部放大框；手機／平板（≤760px）圖例排在地圖下方、
+   也在同一個容器裡，所以卡片會疊在圖例上。現在依序試三個海面區域（SVG 座標），
+   卡片寬度限制在區域內，逐格掃描找一個不碰到任何地圖文字、戰役標記、圖例、放大框的位置；都放不下就不顯示
+   （右欄與置頂播放列仍有年份、標題與段落）。全螢幕「放大動畫」維持原本的位置與樣式。 */
+const BURST_SLOTS = [
+  { x0: 452, y0: 444, x1: 694, y1: 594, align: 'right' },   // 太平洋南側（桌面版原本的位置；有放大框時會讓開）
+  { x0: 490, y0: 176, x1: 694, y1: 432, align: 'right' },   // 東北外海
+  { x0: 8, y0: 8, x1: 372, y1: 292, align: 'left' }         // 日本海
+];
+const BURST_TRAVEL = 26;
+function placeBurst() {
+  const burst = $('sceneBurst'), panel = document.querySelector('.map-panel'), wrap = document.querySelector('.map-wrap'), svg = $('atlas');
+  if (!burst || !panel || !wrap || !svg) return;
+  const reset = () => { burst.classList.remove('placed', 'no-room'); for (const k of ['left', 'top', 'right', 'bottom', 'maxWidth']) burst.style[k] = ''; };
+  if (panel.classList.contains('theater')) { reset(); return; }
+  const m = svg.getScreenCTM(); if (!m) return;
+  const W = wrap.getBoundingClientRect(), pt = svg.createSVGPoint();
+  const toPx = (x, y) => { pt.x = x; pt.y = y; const q = pt.matrixTransform(m); return [q.x - W.left, q.y - W.top]; };
+  const rel = r => ({ x: r.left - W.left, y: r.top - W.top, width: r.width, height: r.height });
+  const shown = e => { for (let n = e; n && n !== svg.parentNode; n = n.parentNode) if (n.nodeType === 1 && getComputedStyle(n).display === 'none') return false; return true; };
+  const obs = [];
+  for (const t of svg.querySelectorAll('text')) if (!t.closest('.battle') && !t.classList.contains('is-covered') && t.textContent.trim() && shown(t)) { const r = t.getBoundingClientRect(); if (r.width) obs.push(padBox(rel(r), 4)); }
+  for (const b of svg.querySelectorAll('.battle')) if (shown(b)) obs.push(padBox(rel(b.getBoundingClientRect()), 2));
+  const bg = svg.querySelector('#inset .inset-bg'); if (bg && shown(bg)) obs.push(padBox(rel(bg.getBoundingClientRect()), 4));
+  const lg = $('legend'); if (lg && getComputedStyle(lg).position === 'absolute' && lg.offsetWidth) obs.push(padBox(rel(lg.getBoundingClientRect()), 6));
+  burst.classList.add('placed'); burst.classList.remove('no-room');
+  burst.style.right = 'auto'; burst.style.bottom = 'auto';
+  for (const S of BURST_SLOTS) {
+    const [ax, ay] = toPx(S.x0, S.y0), [bx, by] = toPx(S.x1, S.y1);
+    const sw = Math.min(bx - ax, 480); if (sw < 120) continue;
+    burst.style.maxWidth = sw.toFixed(0) + 'px'; burst.style.left = '0px'; burst.style.top = '0px';
+    const w = burst.offsetWidth, h = burst.offsetHeight;
+    if (w > bx - ax + 0.5 || h + BURST_TRAVEL > by - ay + 10) continue;
+    const xs = [], ys = [];
+    for (let x = S.align === 'right' ? bx - w : ax; S.align === 'right' ? x >= ax - 0.5 : x <= bx - w + 0.5; x += S.align === 'right' ? -8 : 8) xs.push(x);
+    for (let y = S.align === 'right' && S.y0 > 400 ? by - h : ay; S.y0 > 400 ? y >= ay - 0.5 : y <= by - h + 0.5; y += S.y0 > 400 ? -6 : 6) ys.push(y);
+    for (const y of ys) for (const x of xs) {
+      const box = { x, y, width: w, height: h + BURST_TRAVEL };   // 進場動畫會從下方 26px 滑上來，連滑動的範圍一起避開
+      if (x < 0 || y < 0 || x + w > W.width || y + h + BURST_TRAVEL > W.height) continue;
+      if (obs.some(o => boxHit(box, o))) continue;
+      burst.style.left = x.toFixed(0) + 'px'; burst.style.top = y.toFixed(0) + 'px';
+      return;
+    }
+  }
+  burst.classList.add('no-room');
 }
 /* 讓清單、人物卡等可以突顯指定的路線／範圍（keys 為 null 時取消） */
 function focusRoutes(keys) {
@@ -567,13 +612,17 @@ function renderGuideRoutes() {
   ul.replaceChildren();
   for (const it of marchItems()) if ((it.stage ?? 1) === stage) ul.append(marchLi(it, true));
 }
-addEventListener('resize', () => { if (typeof $ === 'function' && typeof scenes !== 'undefined') updateFocus(); });   // 手機載入途中可能先觸發 resize，這時 app.js 還沒執行
+addEventListener('resize', () => { if (typeof $ === 'function' && typeof scenes !== 'undefined') { updateFocus(); placeBurst(); } });   // 手機載入途中可能先觸發 resize，這時 app.js 還沒執行
 /* 跨過手機斷點（旋轉螢幕、調整視窗）時重畫本幕的路線與放大框；開關全螢幕時切換 viewBox */
 mobileMQ.addEventListener('change', () => {
   if (typeof drawRoutes !== 'function' || !scenes[index]) return;
-  drawRoutes(scenes[index]); updateMapMotion(); if (typeof positionTip === 'function') positionTip();
+  drawRoutes(scenes[index]); updateMapMotion(); placeBurst(); if (typeof positionTip === 'function') positionTip();
 });
 addEventListener('DOMContentLoaded', () => {
   const panel = document.querySelector('.map-panel');
-  if (panel) new MutationObserver(() => { syncAtlasView(); if (typeof positionTip === 'function') requestAnimationFrame(positionTip); }).observe(panel, { attributes: true, attributeFilter: ['class'] });
+  let wasTheater = null;
+  if (panel) new MutationObserver(() => {
+    syncAtlasView(); if (typeof positionTip === 'function') requestAnimationFrame(positionTip);
+    const th = panel.classList.contains('theater'); if (th !== wasTheater) { wasTheater = th; requestAnimationFrame(placeBurst); }
+  }).observe(panel, { attributes: true, attributeFilter: ['class'] });
 });
