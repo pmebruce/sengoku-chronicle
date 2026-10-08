@@ -361,3 +361,22 @@ button.person.active::before{background:var(--gold)}
  .map-panel.theater .scene-burst #burstTitle{font-size:24px}
  .map-panel.theater .scene-burst span:last-child{font-size:17px}
 }
+/* ===== 現場故事橫幅插畫（story-block.js、vignettes-data.js） ===== */
+.scene-block>.scene-art{position:relative;margin:-14px -16px 12px;aspect-ratio:1024/426;overflow:hidden;border-radius:2px 2px 0 0;border-bottom:1px solid #3a4a52;background:#2b2a22 center/cover no-repeat}
+.scene-block>.scene-art[hidden]{display:none}
+.scene-art-btn{display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:zoom-in}
+.scene-art-btn:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
+.scene-art img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s ease}
+.scene-art img.loaded{opacity:1}
+.scene-art-btn:hover img.loaded{filter:brightness(1.06)}
+.scene-art-badge,.vig-badge{padding:1px 7px;border:1px solid #f3ead859;border-radius:3px;background:#0a121dbf;color:#efe6d2;font-family:var(--serif);font-size:11px;letter-spacing:.16em;line-height:1.6}
+.scene-art-badge{position:absolute;right:7px;bottom:7px;pointer-events:none}
+.vig-lightbox{width:min(96vw,1120px);max-width:none;max-height:none;padding:0;border:0;background:transparent;color:#e1e6dd;overflow:visible}
+.vig-lightbox::backdrop{background:rgba(4,9,15,.88)}
+.vig-lightbox figure{margin:0}
+.vig-lightbox img{display:block;width:100%;height:auto;max-height:calc(100vh - 120px);max-height:calc(100dvh - 120px);aspect-ratio:16/9;object-fit:contain;border-radius:4px;background:#1b1d1c center/contain no-repeat;cursor:zoom-out}
+.vig-lightbox figcaption{display:flex;gap:8px;align-items:baseline;margin-top:8px;font-size:14px;line-height:1.6}
+.vig-lightbox figcaption .vig-badge{flex:none}
+.vig-close{position:absolute;top:-6px;right:-6px;width:40px;height:40px;border:1px solid #f3ead866;border-radius:50%;background:#0a121de6;color:#f3ead8;font-size:24px;line-height:36px;cursor:pointer}
+.vig-close:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.scene-art img{transition:none}}

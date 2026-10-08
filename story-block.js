@@ -56,6 +56,62 @@
     try { window.speechSynthesis.speak(u); } catch { resetSpeakBtn(); }
   }
 
+
+  /* 現場故事橫幅插畫（繪卷風，AI 想像繪製）：資料在 vignettes-data.js。
+   * 圖片 loading="lazy"（捲到附近才下載），外框用 aspect-ratio 預留高度，載入前先顯示模糊預覽，不會造成版面跳動。
+   * 點一下開啟完整 16:9 原圖的燈箱（<dialog>），Esc、點背景或「關閉」都能關閉。 */
+  let artFig = null, artImg = null, artBtn = null, lightbox = null, artYear = null;
+  function ensureArt(sb) {
+    if (artFig) return;
+    artFig = el('figure', { class: 'scene-art', id: 'sceneArt' });
+    artBtn = el('button', { type: 'button', class: 'scene-art-btn' });
+    artImg = el('img', { loading: 'lazy', decoding: 'async', width: '1024', height: '426', alt: '' });
+    artImg.addEventListener('load', () => artImg.classList.add('loaded'));
+    artBtn.append(artImg);
+    artFig.append(artBtn, el('span', { class: 'scene-art-badge', 'aria-hidden': 'true' }, '想像繪製'));
+    artBtn.addEventListener('click', () => openLightbox(artYear));
+    sb.prepend(artFig);
+  }
+  function renderArt(year, sb) {
+    const a = (window.sengokuVignetteArt || {})[year];
+    ensureArt(sb);
+    artFig.hidden = !a;
+    if (!a) { artYear = null; return; }
+    if (artYear === year) return;
+    artYear = year;
+    artImg.classList.remove('loaded');
+    artFig.style.backgroundImage = `url("${a.ph}")`;
+    artImg.alt = a.alt;
+    artBtn.setAttribute('aria-label', `放大檢視現場插畫（想像繪製）：${a.alt}`);
+    artImg.src = a.src;
+    if (artImg.complete && artImg.naturalWidth) artImg.classList.add('loaded');
+  }
+  function openLightbox(year) {
+    const a = (window.sengokuVignetteArt || {})[year];
+    if (!a) return;
+    if (!lightbox) {
+      lightbox = el('dialog', { class: 'vig-lightbox', id: 'vigLightbox', 'aria-label': '現場插畫' });
+      const fig = el('figure');
+      const img = el('img', { decoding: 'async', width: '1024', height: '576', alt: '' });
+      const cap = el('figcaption');
+      const close = el('button', { type: 'button', class: 'vig-close', 'aria-label': '關閉插畫' }, '×');
+      fig.append(img, cap);
+      lightbox.append(fig, close);
+      document.body.append(lightbox);
+      close.addEventListener('click', () => lightbox.close());
+      lightbox.addEventListener('click', e => { if (e.target !== close) lightbox.close(); });   // 點圖片或背景都關閉
+      lightbox.addEventListener('keydown', e => { if (e.key !== 'Escape' && e.key !== 'Tab') e.stopPropagation(); }); // 燈箱開著時，方向鍵／空白鍵不要切換幕次或播放
+      lightbox.addEventListener('close', () => { if (artBtn && document.contains(artBtn)) artBtn.focus({ preventScroll: true }); });
+    }
+    const img = lightbox.querySelector('img');
+    img.style.backgroundImage = `url("${a.ph}")`;
+    img.src = a.full; img.alt = a.alt;
+    const cap = lightbox.querySelector('figcaption');
+    cap.replaceChildren(el('span', { class: 'vig-badge' }, '想像繪製'), document.createTextNode(a.alt + '（AI 生成，不是時代畫作；人物不是肖像）'));
+    lightbox.showModal();
+    lightbox.querySelector('.vig-close').focus({ preventScroll: true });
+  }
+
   function renderStory(year) {
     const data = (window.sengokuStories || {})[year];
     const sb = $('sceneBlock'), qb = $('quoteBlock');
@@ -64,6 +120,7 @@
     sb.hidden = qb.hidden = !data;
     if (!data) return;
     const v = data.vignette, q = data.quote;
+    renderArt(year, sb);
 
     /* 現場 */
     $('sceneTitle').textContent = v.title;
@@ -111,4 +168,5 @@
   }
 
   window.renderStory = renderStory;
+  window.openVignetteLightbox = openLightbox;
 })();
