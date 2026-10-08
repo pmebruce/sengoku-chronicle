@@ -1,0 +1,15 @@
+{
+  "id": "./",
+  "name": "戰國風雲｜日本戰國互動地圖",
+  "short_name": "戰國風雲",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101b1e",
+  "theme_color": "#121924",
+  "lang": "zh-Hant",
+  "icons": [
+    {"src": "assets/sengoku-icon-192-v1.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "assets/sengoku-icon-512-v1.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}
