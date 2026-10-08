@@ -380,3 +380,20 @@ button.person.active::before{background:var(--gold)}
 .vig-close{position:absolute;top:-6px;right:-6px;width:40px;height:40px;border:1px solid #f3ead866;border-radius:50%;background:#0a121de6;color:#f3ead8;font-size:24px;line-height:36px;cursor:pointer}
 .vig-close:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.scene-art img{transition:none}}
+/* ===== 手機播放列：‹、播放、›、速度選單排在同一列（≤600px） ===== */
+@media (max-width:600px){
+ .player-bar .transport{flex-wrap:wrap;justify-content:flex-start;column-gap:8px;row-gap:6px;padding:9px 10px 6px}
+ .player-bar .play-controls{flex:1 1 auto;min-width:0;gap:6px}
+ .player-bar .icon-button{flex:none;width:40px;height:44px}
+ .player-bar .play-button{flex:1 1 auto;min-width:0;min-height:44px;padding:6px 10px;gap:7px;white-space:nowrap}
+ .player-bar .play-status{flex:none;gap:0}
+ .player-bar .play-status select{height:44px;padding:0 6px;font-size:14px;max-width:96px}
+ .player-bar .year-scale{height:30px}
+}
+@media (max-width:374px){
+ .player-bar .transport{column-gap:6px;padding-left:8px;padding-right:8px}
+ .player-bar .play-controls{gap:4px}
+ .player-bar .icon-button{width:38px}
+ .player-bar .play-button{padding:6px 8px;gap:5px;font-size:15px}
+ .player-bar .play-status select{padding:0 4px;font-size:13px}
+}
